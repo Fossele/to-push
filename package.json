@@ -1,17 +1,24 @@
 {
   "name": "to-push",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/main.ts"
-  },
-  "keywords": [],
+  "description": "List local git branches that are not in sync with their upstream",
   "type": "module",
+  "bin": {
+    "to-push": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "dev": "node ./dist/main.js --help"
+  },
+  "engines": {
+    "node": ">=18.3.0"
+  },
   "devDependencies": {
-    "@types/node": "^26.6.6",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
   }
 }
