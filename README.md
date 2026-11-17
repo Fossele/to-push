@@ -1,3 +1,4 @@
+
 # to-push
 
 `to-push` recursively scans local folders for Git repositories and reports
@@ -12,9 +13,13 @@ unless `--fetch` is explicitly used.
 - Node.js 18.3 or newer
 - Git
 
-## Install
+## Download and install
+
+The package is not yet available through npm, so download the repository first:
 
 ```bash
+git clone https://github.com/Fossele/to-push.git
+cd to-push
 npm install
 npm run build
 npm install --global .
