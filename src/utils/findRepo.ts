@@ -6,6 +6,14 @@ export default function findRepositories(start: string): string[] {
     /** finds all repository from the current directory and subs included */
     const repositories: string[] = [];
     const ignoredDirectories = new Set([
+        "/var",
+        "/boot",
+        "/etc",
+        "/tmp",
+        "/media",
+        "/opt",
+        "/lost+found",
+        "/root",
         "/dev",
         "/proc",
         "/run",
@@ -21,8 +29,9 @@ export default function findRepositories(start: string): string[] {
         let entries;
         try {
             entries = readdirSync(directory, { withFileTypes: true });
-        } catch {
-            console.log("an error happened while visiting the file");
+        } catch(error) {
+            console.log("an error happened while visiting the file", error);
+            
             return;
         }
 

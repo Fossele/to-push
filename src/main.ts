@@ -98,7 +98,7 @@ function main(): number {
             console.error(`to-push: unable to inspect ${root}`);
             continue;
         }
-        if (inspected > 0) console.log();
+      //This line seems useless  if (inspected > 0) console.log();
         unsynced += printRepository(status, values.synced, c);
         inspected++;
     }
