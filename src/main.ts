@@ -1,33 +1,16 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
-import { join, parse, resolve } from "node:path";
+
+import {  parse, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-interface BranchStatus {
-    marker: string;
-    name: string;
-    detail: string;
-    upstream: string;
-}
 
-type BucketKey = "push" | "diverged" | "behind" | "missing" | "synced";
+import findRepositories from "./utils/findRepo.js"
+import { Colors } from "./utils/interfaces.js";
+import { hasRemote } from "./utils/common.js";
+import  printRepository  from "./utils/printRepoStatus.js";
+import readRepositoryStatus from "./utils/readRepoStatus.js";
 
-interface RepositoryStatus {
-    root: string;
-    current: string;
-    branches: Record<BucketKey, BranchStatus[]>;
-}
 
-interface Colors {
-    bold: string;
-    dim: string;
-    red: string;
-    yellow: string;
-    green: string;
-    cyan: string;
-    reset: string;
-}
 
 const USAGE = `to-push — list local git branches that are not in sync with their upstream
 
@@ -52,162 +35,12 @@ Exit status:
   1   at least one local branch is unsynced
   2   invalid usage or no repository could be inspected`;
 
-function runGit(args: string[], cwd?: string) {
-    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-    return {
-        status: result.status ?? 2,
-        stdout: result.stdout ?? "",
-        stderr: result.stderr ?? "",
-    };
-}
 
-function emptyBuckets(): Record<BucketKey, BranchStatus[]> {
-    return { push: [], diverged: [], behind: [], missing: [], synced: [] };
-}
-
-function isGitRepository(directory: string): boolean {
-    return runGit(["rev-parse", "--show-toplevel"], directory).status === 0;
-}
-
-function hasRemote(root: string): boolean {
-    return runGit(["config", "--get-regexp", "^remote\\..*\\.url$"], root).status === 0;
-}
-
-function findRepositories(start: string): string[] {
-    const repositories: string[] = [];
-    const ignoredDirectories = new Set([
-        "/dev",
-        "/proc",
-        "/run",
-        "/sys",
-        "/snap",
-        "System Volume Information",
-        "$Recycle.Bin",
-    ]);
-
-    function visit(directory: string): void {
-        let entries;
-        try {
-            entries = readdirSync(directory, { withFileTypes: true });
-        } catch {
-            return;
-        }
-
-        if (entries.some((entry) => entry.name === ".git") && isGitRepository(directory)) {
-            const root = runGit(["rev-parse", "--show-toplevel"], directory).stdout.trim();
-            repositories.push(root || directory);
-        }
-
-        for (const entry of entries) {
-            if (
-                entry.isDirectory() &&
-                entry.name !== ".git" &&
-                !ignoredDirectories.has(entry.name) &&
-                !(directory === parse(directory).root &&
-                    ignoredDirectories.has(join(directory, entry.name)))
-            ) {
-                visit(join(directory, entry.name));
-            }
-        }
-    }
-
-    visit(start);
-    return [...new Set(repositories)].sort();
-}
-
-function readRepositoryStatus(root: string, shouldFetch: boolean): RepositoryStatus | null {
-    if (shouldFetch && runGit(["fetch", "--prune", "--quiet"], root).status !== 0) {
-        console.error(`to-push: fetch failed for ${root}`);
-    }
-
-    const head = runGit(["symbolic-ref", "--quiet", "--short", "HEAD"], root);
-    const refs = runGit(
-        [
-            "for-each-ref",
-            "--format=%(HEAD)%1f%(refname:short)%1f%(upstream:short)%1f%(upstream:track)",
-            "refs/heads",
-        ],
-        root,
-    );
-    if (refs.status !== 0) return null;
-
-    const current = head.status === 0 ? head.stdout.trim() : "";
-    const branches = emptyBuckets();
-    for (const record of refs.stdout.split(/\r?\n/)) {
-        if (!record) continue;
-        const [marker = "", name = "", upstream = "", track = ""] = record.split("\x1f");
-        let bucket: BucketKey = "synced";
-        let detail = "in sync";
-        let match: RegExpMatchArray | null;
-
-        if (!upstream) {
-            bucket = "missing";
-            detail = "no upstream";
-        } else if (track.includes("gone")) {
-            bucket = "missing";
-            detail = "upstream deleted";
-        } else if ((match = track.match(/ahead\s+(\d+).*behind\s+(\d+)/))) {
-            bucket = "diverged";
-            detail = `ahead ${match[1]}, behind ${match[2]}`;
-        } else if ((match = track.match(/ahead\s+(\d+)/))) {
-            bucket = "push";
-            detail = `ahead ${match[1]}`;
-        } else if ((match = track.match(/behind\s+(\d+)/))) {
-            bucket = "behind";
-            detail = `behind ${match[1]}`;
-        }
-
-        branches[bucket].push({
-            marker: marker === "*" || name === current ? "*" : " ",
-            name,
-            detail,
-            upstream,
-        });
-    }
-    return { root, current, branches };
-}
-
-function printRepository(status: RepositoryStatus, showSynced: boolean, c: Colors): number {
-    const all = Object.values(status.branches).flat();
-    const width = Math.max(0, ...all.map((branch) => branch.name.length));
-    console.log(`${c.bold}${status.root}${c.reset} ${c.dim}(${status.current || "detached HEAD"})${c.reset}`);
-
-    const section = (title: string, color: string, items: BranchStatus[]) => {
-        if (items.length === 0) return;
-        console.log(`\n${color}${c.bold}${title}${c.reset} ${c.dim}(${items.length})${c.reset}`);
-        for (const item of items) {
-            const arrow = item.upstream && item.detail !== "no upstream" ? `  ${c.dim}→ ${item.upstream}${c.reset}` : "";
-            console.log(`  ${item.marker} ${item.name.padEnd(width)}  ${item.detail}${arrow}`);
-        }
-    };
-
-    section("To push", c.yellow, status.branches.push);
-    section("Diverged", c.red, status.branches.diverged);
-    section("No upstream", c.cyan, status.branches.missing);
-    section("Behind", c.dim, status.branches.behind);
-    if (showSynced) section("In sync", c.green, status.branches.synced);
-
-    const unsynced =
-        status.branches.push.length +
-        status.branches.diverged.length +
-        status.branches.behind.length +
-        status.branches.missing.length;
-    const synced = status.branches.synced.length;
-    if (unsynced === 0) {
-        console.log(
-            synced === 0
-                ? "\nNo local branches."
-                : `\n${c.green}${synced} local branch${synced === 1 ? "" : "es"} ${
-                      synced === 1 ? "is" : "are"
-                  } in sync with its upstream${synced === 1 ? "" : "s"}.${c.reset}`,
-        );
-    } else if (!showSynced && synced > 0) {
-        console.log(`\n${c.dim}${synced} branch${synced === 1 ? "" : "es"} in sync hidden. Pass --synced to show them.${c.reset}`);
-    }
-    return unsynced;
-}
 
 function main(): number {
+    /**
+     * main function of the program
+     */
     let values;
     let positionals: string[];
     try {
