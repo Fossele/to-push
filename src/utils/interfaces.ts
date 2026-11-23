@@ -2,6 +2,7 @@ export interface RepositoryStatus {
     root: string;
     current: string;
     branches: Record<BucketKey, BranchStatus[]>;
+    fetchError?: string;
 }
 
 export interface BranchStatus {

@@ -7,6 +7,11 @@ export default function printRepository(status: RepositoryStatus, showSynced: bo
     const all = Object.values(status.branches).flat();
     const width = Math.max(0, ...all.map((branch) => branch.name.length));
     console.log(`${c.bold}${status.root}${c.reset} ${c.dim}(${status.current || "detached HEAD"})${c.reset}`);
+    if (status.fetchError) {
+        console.log(`\n${c.red}${c.bold}Remote verification failed${c.reset} ${c.dim}— not checked against the remote${c.reset}`);
+        console.log(`  ${status.fetchError}`);
+        return 0;
+    }
 
     const section = (title: string, color: string, items: BranchStatus[]) => {
         if (items.length === 0) return;

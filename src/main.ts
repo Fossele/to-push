@@ -92,6 +92,7 @@ function main(): number {
 
     let unsynced = 0;
     let inspected = 0;
+    let unverified = 0;
     for (const root of repositories) {
         const status = readRepositoryStatus(root, values.fetch);
         if (!status) {
@@ -99,10 +100,11 @@ function main(): number {
             continue;
         }
       //This line seems useless  if (inspected > 0) console.log();
+        if (status.fetchError) unverified++;
         unsynced += printRepository(status, values.synced, c);
         inspected++;
     }
-    return inspected === 0 ? 2 : unsynced === 0 ? 0 : 1;
+    return inspected === 0 || unverified > 0 ? 2 : unsynced === 0 ? 0 : 1;
 }
 
 process.exit(main());

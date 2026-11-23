@@ -60,6 +60,11 @@ enabled by default.
 | `-r`, `--no-remote` | Only include repositories with no configured remote URL. |
 | `-h`, `--help` | Show help. |
 
+With `--fetch`, a repository is not reported as synced unless the remote was
+reachable and `git fetch --prune` completed successfully. If fetching fails,
+the repository is marked `Remote verification failed` and exit code `2` is
+returned instead of relying on stale cached remote-tracking refs.
+
 The scanner skips inaccessible directories and virtual system directories such
 as `/proc`, `/sys`, `/dev`, and `/run`. Nested repositories are included.
 

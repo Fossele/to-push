@@ -16,8 +16,16 @@ export default function readRepositoryStatus(root: string, shouldFetch: boolean)
      */
 
 
-    if (shouldFetch && runGit(["fetch", "--prune", "--quiet"], root).status !== 0) {
-        console.error(`to-push: fetch failed for ${root}`);
+    if (shouldFetch) {
+        const fetch = runGit(["fetch", "--prune", "--quiet"], root);
+        if (fetch.status !== 0) {
+            return {
+                root,
+                current: "",
+                branches: emptyBuckets(),
+                fetchError: fetch.stderr.trim() || "git fetch failed",
+            };
+        }
     }
 
 
