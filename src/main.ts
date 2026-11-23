@@ -65,6 +65,10 @@ function main(): number {
         console.log(USAGE);
         return 0;
     }
+     
+    console.log(values)
+
+
     if (positionals.length > 1) {
         console.error("to-push accepts at most one directory");
         return 2;
@@ -99,8 +103,8 @@ function main(): number {
             console.error(`to-push: unable to inspect ${root}`);
             continue;
         }
-      //This line seems useless  if (inspected > 0) console.log();
         if (status.fetchError) unverified++;
+      //This line seems useless  if (inspected > 0) console.log();
         unsynced += printRepository(status, values.synced, c);
         inspected++;
     }

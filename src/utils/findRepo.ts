@@ -13,7 +13,7 @@ export default function findRepositories(start: string): string[] {
         "/media",
         "/opt",
         "/lost+found",
-        "/root",
+        "/root",    
         "/dev",
         "/proc",
         "/run",
